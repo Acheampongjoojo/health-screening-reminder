@@ -83,6 +83,33 @@ function App() {
     }
   }
 
+  
+  async function handleTestReminders() {
+    try {
+      setError("");
+
+      const response = await apiRequest(
+        "http://localhost:5000/api/admin/test-reminders",
+        {
+          method: "POST",
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.message || "Could not test reminders."
+        );
+      }
+
+      alert(result.message);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+
   useEffect(() => {
     setCheckingSession(false);
   }, []);
@@ -232,6 +259,17 @@ function App() {
           >
             Log out
           </button>
+
+          
+<button
+  type="button"
+  onClick={handleTestReminders}
+  className="submit-button"
+>
+  Test Reminders
+</button>
+
+
         </div>
       </header>
 

@@ -81,21 +81,25 @@ app.get("/", (req, res) => {
   res.send("Health Screening Reminder API is running!");
 });
 
+
 app.post("/api/admin/test-reminders", authenticateAdmin, async (req, res) => {
   try {
     const { checkReminders } = require("./scheduler");
 
-    await checkReminders();
+    await checkReminders(null, true);
 
     res.json({
-      message: "Reminder check completed. Check the server terminal."
+      message: "Dry run completed. Check the server terminal for results."
     });
   } catch (error) {
+    console.error("Dry run failed:", error.message);
+
     res.status(500).json({
-      message: "Reminder check failed."
+      message: "Dry run failed."
     });
   }
 });
+
 
 
 app.post("/api/admin/test-email", authenticateAdmin, async (req, res) => {

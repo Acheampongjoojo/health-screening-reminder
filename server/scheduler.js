@@ -77,7 +77,7 @@ async function prepareReminder(reminderKey, staff, reminderType) {
 
 // Check which reminders are due today.
 
-async function checkReminders(testDate = null) {
+async function checkReminders(testDate = null, dryRun = false) {
   const today = (
     testDate
       ? DateTime.fromISO(testDate, { zone: TIME_ZONE })
@@ -89,14 +89,14 @@ async function checkReminders(testDate = null) {
   console.log("Today's date:", today.toISODate());
 
   try {
-    console.log("Checking database for active staff...");
+    
     const staffMembers = await Staff.find({
       isActive: true,
     });
-    console.log("Active staff found:", staffMembers.length);
+    
 
     for (const staff of staffMembers) {
-        console.log("Processing staff:", staff.fullName);
+        
       const screeningDate = DateTime
         .fromJSDate(staff.screeningDate, {
           zone: TIME_ZONE,
@@ -111,78 +111,65 @@ async function checkReminders(testDate = null) {
     }    
       
    
+
+   
     // 1. Yearly announcement: January 1.
     if (today.month === 1 && today.day === 1) {
       const reminderKey =
         `${staff._id}-yearly-${today.year}`;
 
-      try {
-        const existingReminder = await ReminderLog.findOne({
-          reminderKey
-        });
+      if (dryRun) {
+        console.log(
+          `[DRY RUN] Yearly announcement would be checked for ${staff.fullName}`
+        );
+      } else {
+        try {
+          const shouldSend = await prepareReminder(
+            reminderKey,
+            staff,
+            "yearly"
+          );
 
-        if (existingReminder && existingReminder.status === "sent") {
-          console.log(
-            `[YEARLY ANNOUNCEMENT SKIPPED] Already sent to ${staff.fullName}`
-          );
-        } else if (
-          existingReminder &&
-          existingReminder.status === "sending"
-        ) {
-          console.log(
-            `[YEARLY ANNOUNCEMENT SKIPPED] A send attempt is already in progress for ${staff.fullName}`
-          );
-        } else {
-          if (existingReminder && existingReminder.status === "failed") {
-            await ReminderLog.updateOne(
-              { reminderKey },
-              { $set: { status: "sending" } }
+          if (!shouldSend) {
+            console.log(
+              `[YEARLY ANNOUNCEMENT SKIPPED] Already sent, or a send attempt is recent, for ${staff.fullName}`
             );
           } else {
-            await ReminderLog.create({
-              reminderKey,
-              staffId: staff._id,
-              reminderType: "yearly",
-              screeningDate: staff.screeningDate,
-              status: "sending"
+            await sendEmail({
+              to: staff.email,
+              subject: `Your Annual Health Screening - ${today.year}`,
+              text:
+                `Hello ${staff.fullName},\n\n` +
+                `Your annual health screening is scheduled for ` +
+                `${screeningDate.toFormat("MMMM")} ${today.year}.\n\n` +
+                `Your exact appointment date and time, along with ` +
+                `any preparation instructions, will be communicated ` +
+                `closer to your screening.\n\n` +
+                `Regards,\nHealth Screening Team`
             });
+
+            await ReminderLog.updateOne(
+              { reminderKey },
+              { $set: { status: "sent", sentAt: new Date() } }
+            );
+
+            console.log(
+              `[YEARLY ANNOUNCEMENT SENT] ${staff.fullName}`
+            );
           }
-
-          await sendEmail({
-            to: staff.email,
-            subject: `Your Annual Health Screening - ${today.year}`,
-            text:
-              `Hello ${staff.fullName},\n\n` +
-              `Your annual health screening is scheduled for ` +
-              `${screeningDate.toFormat("MMMM")} ${today.year}.\n\n` +
-              `Your exact appointment date and time, along with ` +
-              `any preparation instructions, will be communicated ` +
-              `closer to your screening.\n\n` +
-              `Regards,\nHealth Screening Team`
-          });
-
+        } catch (emailError) {
           await ReminderLog.updateOne(
             { reminderKey },
-            { $set: { status: "sent", sentAt: new Date() } }
+            { $set: { status: "failed" } }
           );
 
-          console.log(
-            `[YEARLY ANNOUNCEMENT SENT] ${staff.fullName} (${staff.email})`
+          console.error(
+            `[YEARLY ANNOUNCEMENT FAILED] ${staff.fullName}:`,
+            emailError.message
           );
         }
-      } catch (emailError) {
-        await ReminderLog.updateOne(
-          { reminderKey },
-          { $set: { status: "failed" } }
-        );
-
-        console.error(
-          `[YEARLY ANNOUNCEMENT FAILED] ${staff.fullName}:`,
-          emailError.message
-        );
       }
     }
-
 
       
    
@@ -192,50 +179,56 @@ async function checkReminders(testDate = null) {
       const reminderKey =
         `${staff._id}-monthly-${today.toFormat("yyyy-MM")}`;
 
-      try {
-        const shouldSend = await prepareReminder(
-          reminderKey,
-          staff,
-          "monthly"
+      if (dryRun) {
+        console.log(
+          `[DRY RUN] Monthly reminder would be checked for ${staff.fullName}`
         );
-
-        if (!shouldSend) {
-          console.log(
-            `[MONTHLY REMINDER SKIPPED] Already sent, or a send attempt is recent, for ${staff.fullName}`
+      } else {
+        try {
+          const shouldSend = await prepareReminder(
+            reminderKey,
+            staff,
+            "monthly"
           );
-        } else {
-          await sendEmail({
-            to: staff.email,
-            subject: "Your Health Screening Is Scheduled for This Month",
-            text:
-              `Hello ${staff.fullName},\n\n` +
-              `Your annual health screening is scheduled for ` +
-              `${screeningDate.toFormat("dd LLLL yyyy")} ` +
-              `at ${staff.screeningTime}.\n\n` +
-              `Clinic: ${staff.clinic}\n` +
-              `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
-              `Regards,\nHealth Screening Team`
-          });
 
+          if (!shouldSend) {
+            console.log(
+              `[MONTHLY REMINDER SKIPPED] Already sent, or a send attempt is recent, for ${staff.fullName}`
+            );
+          } else {
+            await sendEmail({
+              to: staff.email,
+              subject: "Your Health Screening Is Scheduled for This Month",
+              text:
+                `Hello ${staff.fullName},\n\n` +
+                `Your annual health screening is scheduled for ` +
+                `${screeningDate.toFormat("dd LLLL yyyy")} ` +
+                `at ${staff.screeningTime}.\n\n` +
+                `Clinic: ${staff.clinic}\n` +
+                `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
+                `Regards,\nHealth Screening Team`
+            });
+
+            await ReminderLog.updateOne(
+              { reminderKey },
+              { $set: { status: "sent", sentAt: new Date() } }
+            );
+
+            console.log(
+              `[MONTHLY REMINDER SENT] ${staff.fullName}`
+            );
+          }
+        } catch (emailError) {
           await ReminderLog.updateOne(
             { reminderKey },
-            { $set: { status: "sent", sentAt: new Date() } }
+            { $set: { status: "failed" } }
           );
 
-          console.log(
-            `[MONTHLY REMINDER SENT] ${staff.fullName} (${staff.email})`
+          console.error(
+            `[MONTHLY REMINDER FAILED] ${staff.fullName}:`,
+            emailError.message
           );
         }
-      } catch (emailError) {
-        await ReminderLog.updateOne(
-          { reminderKey },
-          { $set: { status: "failed" } }
-        );
-
-        console.error(
-          `[MONTHLY REMINDER FAILED] ${staff.fullName}:`,
-          emailError.message
-        );
       }
     }
 
@@ -243,6 +236,8 @@ async function checkReminders(testDate = null) {
       
         
         
+        
+       
         // 3. Final reminder: exactly two calendar days before.
         if (
           screeningDate.year === today.year &&
@@ -251,207 +246,136 @@ async function checkReminders(testDate = null) {
           const reminderKey =
             `${staff._id}-final-${screeningDate.toISODate()}`;
 
-          try {
-            const existingReminder = await ReminderLog.findOne({
-              reminderKey
-            });
-
-            if (
-              existingReminder &&
-              existingReminder.status === "sent"
-            ) {
-              console.log(
-                `[FINAL REMINDER SKIPPED] Already sent to ${staff.fullName}`
+          if (dryRun) {
+            console.log(
+              `[DRY RUN] Final reminder would be checked for ${staff.fullName}`
+            );
+          } else {
+            try {
+              const shouldSend = await prepareReminder(
+                reminderKey,
+                staff,
+                "final"
               );
-              continue;
-            }
 
-            if (
-  existingReminder &&
-  existingReminder.status === "sending"
-) {
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+              if (!shouldSend) {
+                console.log(
+                  `[FINAL REMINDER SKIPPED] Already sent, or a send attempt is recent, for ${staff.fullName}`
+                );
+              } else {
+                await sendEmail({
+                  to: staff.email,
+                  subject: "Reminder: Your Health Screening Is in Two Days",
+                  text:
+                    `Hello ${staff.fullName},\n\n` +
+                    `This is a reminder that your annual health screening ` +
+                    `is scheduled for ${screeningDate.toFormat("dd LLLL yyyy")} ` +
+                    `at ${staff.screeningTime}.\n\n` +
+                    `Clinic: ${staff.clinic}\n` +
+                    `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
+                    `Please make the necessary preparations for your appointment.\n\n` +
+                    `Regards,\nHealth Screening Team`
+                });
 
-  if (existingReminder.updatedAt > tenMinutesAgo) {
-    console.log(
-      `[FINAL REMINDER SKIPPED] A send attempt is still recent for ${staff.fullName}`
-    );
-    continue;
-  }
+                await ReminderLog.updateOne(
+                  { reminderKey },
+                  {
+                    $set: {
+                      status: "sent",
+                      sentAt: new Date()
+                    }
+                  }
+                );
 
-  const retryResult = await ReminderLog.updateOne(
-  {
-    reminderKey,
-    status: "sending",
-    updatedAt: { $lte: tenMinutesAgo }
-  },
-  {
-    $set: { status: "failed" }
-  }
-);
-
-if (retryResult.modifiedCount === 0) {
-  console.log(
-    `[FINAL REMINDER SKIPPED] Could not safely claim retry for ${staff.fullName}`
-  );
-  continue;
-}
-
-  console.log(
-    `[FINAL REMINDER RETRY] Previous attempt timed out for ${staff.fullName}`
-  );
-  existingReminder.status = "failed";
-}
-
-            if (
-              existingReminder &&
-              existingReminder.status === "failed"
-            ) {
+                console.log(
+                  `[FINAL REMINDER SENT] ${staff.fullName}`
+                );
+              }
+            } catch (emailError) {
               await ReminderLog.updateOne(
                 { reminderKey },
-                { $set: { status: "sending" } }
+                { $set: { status: "failed" } }
               );
-            } else {
-              await ReminderLog.create({
-                reminderKey,
-                staffId: staff._id,
-                reminderType: "final",
-                screeningDate: staff.screeningDate,
-                status: "sending"
-              });
+
+              console.error(
+                `[FINAL REMINDER FAILED] ${staff.fullName}:`,
+                emailError.message
+              );
             }
-
-            await sendEmail({
-              to: staff.email,
-              subject: "Reminder: Your Health Screening Is in Two Days",
-              text:
-                `Hello ${staff.fullName},\n\n` +
-                `This is a reminder that your annual health screening ` +
-                `is scheduled for ${screeningDate.toFormat("dd LLLL yyyy")} ` +
-                `at ${staff.screeningTime}.\n\n` +
-                `Clinic: ${staff.clinic}\n` +
-                `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
-                `Please make the necessary preparations for your appointment.\n\n` +
-                `Regards,\nHealth Screening Team`
-            });
-
-            await ReminderLog.updateOne(
-              { reminderKey },
-              {
-                $set: {
-                  status: "sent",
-                  sentAt: new Date()
-                }
-              }
-            );
-
-            console.log(
-              `[FINAL REMINDER SENT] ${staff.fullName} (${staff.email})`
-            );
-          } catch (emailError) {
-            await ReminderLog.updateOne(
-              { reminderKey },
-              { $set: { status: "failed" } }
-            );
-
-            console.error(
-              `[FINAL REMINDER FAILED] ${staff.fullName}:`,
-              emailError.message
-            );
           }
         }
 
 
 
       
+        
+        
         // 4. Screening-day reminder.
         if (screeningDate.hasSame(today, "day")) {
           const reminderKey =
             `${staff._id}-screening-day-${screeningDate.toISODate()}`;
 
-          try {
-            const existingReminder = await ReminderLog.findOne({
-              reminderKey
-            });
-
-            if (
-              existingReminder &&
-              existingReminder.status === "sent"
-            ) {
-              console.log(
-                `[SCREENING DAY SKIPPED] Already sent to ${staff.fullName}`
+          if (dryRun) {
+            console.log(
+              `[DRY RUN] Screening-day reminder would be checked for ${staff.fullName}`
+            );
+          } else {
+            try {
+              const shouldSend = await prepareReminder(
+                reminderKey,
+                staff,
+                "screening-day"
               );
-              continue;
-            }
 
-            if (
-              existingReminder &&
-              existingReminder.status === "sending"
-            ) {
-              console.log(
-                `[SCREENING DAY SKIPPED] A send attempt is already in progress for ${staff.fullName}`
-              );
-              continue;
-            }
+              if (!shouldSend) {
+                console.log(
+                  `[SCREENING DAY SKIPPED] Already sent, or a send attempt is recent, for ${staff.fullName}`
+                );
+              } else {
+                await sendEmail({
+                  to: staff.email,
+                  subject: "Your Health Screening Is Today",
+                  text:
+                    `Hello ${staff.fullName},\n\n` +
+                    `This is a reminder that your health screening is scheduled for today, ` +
+                    `${screeningDate.toFormat("dd LLLL yyyy")} at ${staff.screeningTime}.\n\n` +
+                    `Clinic: ${staff.clinic}\n` +
+                    `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
+                    `Please attend your appointment as scheduled.\n\n` +
+                    `Regards,\nHealth Screening Team`
+                });
 
-            if (
-              existingReminder &&
-              existingReminder.status === "failed"
-            ) {
+                await ReminderLog.updateOne(
+                  { reminderKey },
+                  {
+                    $set: {
+                      status: "sent",
+                      sentAt: new Date()
+                    }
+                  }
+                );
+
+                console.log(
+                  `[SCREENING DAY SENT] ${staff.fullName}`
+                );
+              }
+            } catch (emailError) {
               await ReminderLog.updateOne(
                 { reminderKey },
-                { $set: { status: "sending" } }
+                { $set: { status: "failed" } }
               );
-            } else {
-              await ReminderLog.create({
-                reminderKey,
-                staffId: staff._id,
-                reminderType: "screening-day",
-                screeningDate: staff.screeningDate,
-                status: "sending"
-              });
+
+              console.error(
+                `[SCREENING DAY FAILED] ${staff.fullName}:`,
+                emailError.message
+              );
             }
-
-            await sendEmail({
-              to: staff.email,
-              subject: "Your Health Screening Is Today",
-              text:
-                `Hello ${staff.fullName},\n\n` +
-                `This is a reminder that your health screening is scheduled for today, ` +
-                `${screeningDate.toFormat("dd LLLL yyyy")} at ${staff.screeningTime}.\n\n` +
-                `Clinic: ${staff.clinic}\n` +
-                `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
-                `Please attend your appointment as scheduled.\n\n` +
-                `Regards,\nHealth Screening Team`
-            });
-
-            await ReminderLog.updateOne(
-              { reminderKey },
-              {
-                $set: {
-                  status: "sent",
-                  sentAt: new Date()
-                }
-              }
-            );
-
-            console.log(
-              `[SCREENING DAY SENT] ${staff.fullName} (${staff.email})`
-            );
-          } catch (emailError) {
-            await ReminderLog.updateOne(
-              { reminderKey },
-              { $set: { status: "failed" } }
-            );
-
-            console.error(
-              `[SCREENING DAY FAILED] ${staff.fullName}:`,
-              emailError.message
-            );
           }
         }
 
-        console.log(`Finished checking reminders for ${staff.fullName}.`);
+
+
+        
     }
   } catch (error) {
     console.error(
