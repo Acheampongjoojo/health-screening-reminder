@@ -83,23 +83,23 @@ function App() {
     }
   }
 
-  
+
   async function handleTestReminders() {
     try {
       setError("");
 
       const response = await apiRequest(
-  "http://localhost:5000/api/admin/test-reminders",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-  testDate: null,
-}),
-  }
-);                    
+        "http://localhost:5000/api/admin/test-reminders",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            testDate: null,
+          }),
+        }
+      );
 
       const result = await response.json();
 
@@ -219,7 +219,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           result.message ||
-            `Could not ${isEditing ? "update" : "add"} staff member.`
+          `Could not ${isEditing ? "update" : "add"} staff member.`
         );
       }
 
@@ -266,14 +266,14 @@ function App() {
             Log out
           </button>
 
-          
-<button
-  type="button"
-  onClick={handleTestReminders}
-  className="submit-button"
->
-  Test Reminders
-</button>
+
+          <button
+            type="button"
+            onClick={handleTestReminders}
+            className="submit-button"
+          >
+            Test Reminders
+          </button>
 
 
         </div>
