@@ -89,11 +89,17 @@ function App() {
       setError("");
 
       const response = await apiRequest(
-        "http://localhost:5000/api/admin/test-reminders",
-        {
-          method: "POST",
-        }
-      );
+  "http://localhost:5000/api/admin/test-reminders",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+  testDate: null,
+}),
+  }
+);                    
 
       const result = await response.json();
 

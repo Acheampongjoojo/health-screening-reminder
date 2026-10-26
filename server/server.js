@@ -86,7 +86,9 @@ app.post("/api/admin/test-reminders", authenticateAdmin, async (req, res) => {
   try {
     const { checkReminders } = require("./scheduler");
 
-    await checkReminders(null, true);
+    const { testDate } = req.body;
+
+await checkReminders(testDate || null, true);
 
     res.json({
       message: "Dry run completed. Check the server terminal for results."
