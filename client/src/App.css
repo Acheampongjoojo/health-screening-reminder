@@ -45,6 +45,7 @@ h1 {
 h2 {
   margin-top: 0;
   font-size: 20px;
+  color: #1f2937;
 }
 
 .dashboard-header p {
@@ -104,6 +105,7 @@ h2 {
   border-radius: 8px;
   outline: none;
   background: white;
+  color: #1f2937;
 }
 
 .staff-form input:focus,
@@ -112,12 +114,19 @@ h2 {
   box-shadow: 0 0 0 3px #2563eb20;
 }
 
+.staff-form input::placeholder,
+.staff-form textarea::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
 .full-width {
   grid-column: 1 / -1;
 }
 
 .submit-button {
   justify-self: start;
+  margin: 5px;
   padding: 12px 20px;
   border: none;
   border-radius: 8px;
