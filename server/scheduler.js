@@ -8,41 +8,61 @@ const ReminderLog = require("./models/reminderLog");
 const TIME_ZONE = "Africa/Accra";
 
 
+
 async function prepareReminder(reminderKey, staff, reminderType) {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
     const existingReminder = await ReminderLog.findOne({ reminderKey });
 
-    // Never resend a reminder that was already sent.
+    // Never automatically resend a reminder already marked as sent.
     if (existingReminder && existingReminder.status === "sent") {
         return false;
     }
 
-    // Skip a recent attempt, but allow a stale attempt to be claimed.
+    // Uncertain delivery must be reviewed before another attempt.
+    if (existingReminder && existingReminder.status === "needs_review") {
+        console.warn(
+            `[NEEDS REVIEW] ${reminderType} reminder for ${staff.fullName}. ` +
+            "Check the delivery outcome before retrying."
+        );
+        return false;
+    }
+
+    // A recent sending attempt may still be in progress.
     if (existingReminder && existingReminder.status === "sending") {
         if (existingReminder.updatedAt > tenMinutesAgo) {
             return false;
         }
+
+        // A stale sending record may represent an email that was accepted.
+        // Move it to review instead of automatically risking a duplicate.
+        const reviewResult = await ReminderLog.updateOne(
+            {
+                reminderKey,
+                status: "sending",
+                updatedAt: { $lte: tenMinutesAgo }
+            },
+            {
+                $set: { status: "needs_review" }
+            }
+        );
+
+        if (reviewResult.modifiedCount === 1) {
+            console.warn(
+                `[NEEDS REVIEW] Stale ${reminderType} reminder for ` +
+                `${staff.fullName}. Check delivery before retrying.`
+            );
+        }
+
+        return false;
     }
 
-    // Atomically claim a failed or stale reminder.
-    if (
-        existingReminder &&
-        (
-            existingReminder.status === "failed" ||
-            existingReminder.status === "sending"
-        )
-    ) {
+    // Atomically claim a reminder previously marked as failed.
+    if (existingReminder && existingReminder.status === "failed") {
         const claimedReminder = await ReminderLog.findOneAndUpdate(
             {
                 reminderKey,
-                $or: [
-                    { status: "failed" },
-                    {
-                        status: "sending",
-                        updatedAt: { $lte: tenMinutesAgo }
-                    }
-                ]
+                status: "failed"
             },
             {
                 $set: { status: "sending" }
@@ -154,7 +174,7 @@ async function checkReminders(testDate = null, dryRun = false) {
                                 try {
                                     await ReminderLog.updateOne(
                                         { reminderKey, status: "sending" },
-                                        { $set: { status: "failed" } }
+                                        { $set: { status: "needs_review" } }
                                     );
                                 } catch (logError) {
                                     console.error(
@@ -253,7 +273,7 @@ async function checkReminders(testDate = null, dryRun = false) {
                                 try {
                                     await ReminderLog.updateOne(
                                         { reminderKey, status: "sending" },
-                                        { $set: { status: "failed" } }
+                                        { $set: { status: "needs_review" } }
                                     );
                                 } catch (logError) {
                                     console.error(
@@ -355,15 +375,16 @@ async function checkReminders(testDate = null, dryRun = false) {
                                         `Please make the necessary preparations for your appointment.\n\n` +
                                         `Regards,\nHealth Screening Team`
                                 });
-                            } catch (emailError) {
+                            }
+                            catch (emailError) {
                                 try {
                                     await ReminderLog.updateOne(
                                         { reminderKey, status: "sending" },
-                                        { $set: { status: "failed" } }
+                                        { $set: { status: "needs_review" } }
                                     );
                                 } catch (logError) {
                                     console.error(
-                                        "[FINAL REMINDER] Could not update failure status:",
+                                        "[FINAL REMINDER] Could not update delivery review status:",
                                         logError.message
                                     );
                                 }
@@ -373,8 +394,14 @@ async function checkReminders(testDate = null, dryRun = false) {
                                     emailError.message
                                 );
 
+                                console.warn(
+                                    `[NEEDS REVIEW] Check whether the final reminder for ${staff.fullName} ` +
+                                    "was delivered before attempting another send."
+                                );
+
                                 continue;
                             }
+
 
                             // Record success separately from the email operation.
                             try {
@@ -460,7 +487,7 @@ async function checkReminders(testDate = null, dryRun = false) {
                                 try {
                                     await ReminderLog.updateOne(
                                         { reminderKey, status: "sending" },
-                                        { $set: { status: "failed" } }
+                                        { $set: { status: "needs_review" } }
                                     );
                                 } catch (logError) {
                                     console.error(
