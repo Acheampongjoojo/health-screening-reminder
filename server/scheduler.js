@@ -2,7 +2,7 @@
 const cron = require("node-cron");
 const { DateTime } = require("luxon");
 const Staff = require("./models/staff");
-const { sendEmail } = require("./emailService");
+const { sendEmail, buildEmailHtml } = require("./emailService");
 const ReminderLog = require("./models/reminderLog");
 
 const TIME_ZONE = "Africa/Accra";
@@ -167,7 +167,17 @@ async function checkReminders(testDate = null, dryRun = false) {
                                         `Your exact appointment date and time, along with ` +
                                         `any preparation instructions, will be communicated ` +
                                         `closer to your screening.\n\n` +
-                                        `Regards,\nHealth Screening Team`
+                                        `Regards,\nHealth Screening Team`,
+
+                                    html: buildEmailHtml({
+                                        fullName: staff.fullName,
+                                        message:
+                                            `Your annual health screening is scheduled for ${screeningDate.toFormat("MMMM")} ${today.year}. Your exact appointment date and time, along with any preparation instructions, will be communicated closer to your screening.`,
+                                        screeningDate: `Scheduled for ${screeningDate.toFormat("MMMM")} ${today.year}`,
+                                        screeningTime: "To be communicated",
+                                        clinic: "To be communicated",
+                                        instructions: "Please look out for your upcoming appointment details."
+                                    })
                                 });
                             } catch (emailError) {
                                 // The email operation reported an error.
@@ -257,6 +267,7 @@ async function checkReminders(testDate = null, dryRun = false) {
                         } else {
                             // Send the email first.
                             try {
+
                                 await sendEmail({
                                     to: staff.email,
                                     subject: "Your Health Screening Is Scheduled for This Month",
@@ -267,8 +278,19 @@ async function checkReminders(testDate = null, dryRun = false) {
                                         `at ${staff.screeningTime}.\n\n` +
                                         `Clinic: ${staff.clinic}\n` +
                                         `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
-                                        `Regards,\nHealth Screening Team`
+                                        `Regards,\nHealth Screening Team`,
+
+                                    html: buildEmailHtml({
+                                        fullName: staff.fullName,
+                                        message:
+                                            "Your annual health screening is scheduled for this month. Please review your appointment details below.",
+                                        screeningDate: screeningDate.toFormat("dd LLLL yyyy"),
+                                        screeningTime: staff.screeningTime,
+                                        clinic: staff.clinic,
+                                        instructions: staff.instructions
+                                    })
                                 });
+
                             } catch (emailError) {
                                 try {
                                     await ReminderLog.updateOne(
@@ -362,6 +384,7 @@ async function checkReminders(testDate = null, dryRun = false) {
                         } else {
                             // Send the email first.
                             try {
+
                                 await sendEmail({
                                     to: staff.email,
                                     subject: "Reminder: Your Health Screening Is in Two Days",
@@ -373,8 +396,19 @@ async function checkReminders(testDate = null, dryRun = false) {
                                         `Clinic: ${staff.clinic}\n` +
                                         `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
                                         `Please make the necessary preparations for your appointment.\n\n` +
-                                        `Regards,\nHealth Screening Team`
+                                        `Regards,\nHealth Screening Team`,
+
+                                    html: buildEmailHtml({
+                                        fullName: staff.fullName,
+                                        message:
+                                            "This is a reminder that your annual health screening is in two days. Please make the necessary preparations for your appointment.",
+                                        screeningDate: screeningDate.toFormat("dd LLLL yyyy"),
+                                        screeningTime: staff.screeningTime,
+                                        clinic: staff.clinic,
+                                        instructions: staff.instructions
+                                    })
                                 });
+
                             }
                             catch (emailError) {
                                 try {
@@ -471,6 +505,7 @@ async function checkReminders(testDate = null, dryRun = false) {
                         } else {
                             // Send the email first.
                             try {
+
                                 await sendEmail({
                                     to: staff.email,
                                     subject: "Your Health Screening Is Today",
@@ -481,8 +516,19 @@ async function checkReminders(testDate = null, dryRun = false) {
                                         `Clinic: ${staff.clinic}\n` +
                                         `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
                                         `Please attend your appointment as scheduled.\n\n` +
-                                        `Regards,\nHealth Screening Team`
+                                        `Regards,\nHealth Screening Team`,
+
+                                    html: buildEmailHtml({
+                                        fullName: staff.fullName,
+                                        message:
+                                            "Today is your scheduled annual health screening. Please attend your appointment as scheduled.",
+                                        screeningDate: screeningDate.toFormat("dd LLLL yyyy"),
+                                        screeningTime: staff.screeningTime,
+                                        clinic: staff.clinic,
+                                        instructions: staff.instructions
+                                    })
                                 });
+
                             } catch (emailError) {
                                 try {
                                     await ReminderLog.updateOne(

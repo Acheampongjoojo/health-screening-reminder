@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const authenticateAdmin = require("./middleware/auth");
 
 const { startScheduler } = require("./scheduler");
-const { sendEmail } = require("./emailService");
+const { sendEmail, buildEmailHtml } = require("./emailService");
 
 const express = require("express");
 const cors = require("cors");
@@ -104,31 +104,96 @@ app.post("/api/admin/test-reminders", authenticateAdmin, async (req, res) => {
 
 
 
+
 app.post("/api/admin/test-email", authenticateAdmin, async (req, res) => {
     try {
-        const { to } = req.body;
+        const { to, reminderType } = req.body;
 
-        if (!to) {
+        // Validate recipient email.
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!to || !emailPattern.test(to)) {
             return res.status(400).json({
-                message: "Please provide a recipient email address."
+                message: "Please provide a valid recipient email address."
             });
         }
 
+        // Prepare sample content for each reminder type.
+        const templates = {
+            yearly: {
+                subject: "Your Annual Health Screening Schedule",
+                message: "Your annual health screening is scheduled for November 2026. Your exact appointment date and time, along with any preparation instructions, will be communicated closer to your screening.",
+                screeningDate: "Scheduled for November 2026",
+                screeningTime: "To be communicated",
+                clinic: "To be communicated",
+                instructions: "Please look out for your upcoming appointment details."
+            },
+
+            monthly: {
+                subject: "Your Health Screening Is This Month",
+                message: "Your annual health screening is scheduled for this month. Please review your appointment details below.",
+                screeningDate: "15 November 2026",
+                screeningTime: "09:00 AM",
+                clinic: "Cocoa Clinic, Kumasi",
+                instructions: "Please bring your Ghana Card and relevant documents."
+            },
+
+            final: {
+                subject: "Health Screening Reminder - Two Days to Go",
+                message: "This is a reminder that your annual health screening is in two days. Please make the necessary preparations for your appointment.",
+                screeningDate: "15 November 2026",
+                screeningTime: "09:00 AM",
+                clinic: "Cocoa Clinic, Kumasi",
+                instructions: "Please bring your Ghana Card and relevant documents."
+            },
+
+            "screening-day": {
+                subject: "Your Health Screening Is Today",
+                message: "Today is your scheduled annual health screening. Please attend your appointment as scheduled.",
+                screeningDate: "15 November 2026",
+                screeningTime: "09:00 AM",
+                clinic: "Cocoa Clinic, Kumasi",
+                instructions: "Please bring your Ghana Card and relevant documents."
+            }
+        };
+
+        if (!templates[reminderType]) {
+            return res.status(400).json({
+                message: "Invalid reminder type. Choose yearly, monthly, final, or screening-day."
+            });
+        }
+
+        const template = templates[reminderType];
+
+        const html = buildEmailHtml({
+            fullName: "Test User",
+            message: template.message,
+            screeningDate: template.screeningDate,
+            screeningTime: template.screeningTime,
+            clinic: template.clinic,
+            instructions: template.instructions
+        });
+
         await sendEmail({
             to,
-            subject: "Health Screening App - Email Test",
-            text: "Success! Your Health Screening Reminder App can now send emails through Gmail."
+            subject: template.subject,
+            text: `${template.message}\n\nDate: ${template.screeningDate}\nTime: ${template.screeningTime}\nClinic: ${template.clinic}\nInstructions: ${template.instructions}`,
+            html
         });
 
         res.json({
-            message: "Test email sent successfully. Check the recipient's inbox."
+            message: `${reminderType} test email sent successfully. Check the recipient's inbox.`
         });
+
     } catch (error) {
+        console.error("Test email failed:", error.message);
+
         res.status(500).json({
             message: "Email sending failed. Check the server terminal."
         });
     }
 });
+
 
 
 // Get all staff members
