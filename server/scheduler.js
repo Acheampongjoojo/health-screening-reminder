@@ -96,7 +96,11 @@ async function prepareReminder(reminderKey, staff, reminderType) {
 
 // Check which reminders are due today.
 
-async function checkReminders(testDate = null, dryRun = false) {
+async function checkReminders(
+    testDate = null,
+    dryRun = false,
+    targetStaffId = null
+) {
     const today = (
         testDate
             ? DateTime.fromISO(testDate, { zone: TIME_ZONE })
@@ -109,9 +113,15 @@ async function checkReminders(testDate = null, dryRun = false) {
 
     try {
 
-        const staffMembers = await Staff.find({
-            isActive: true,
-        });
+        const staffQuery = {
+    isActive: true,
+};
+
+if (targetStaffId) {
+    staffQuery._id = targetStaffId;
+}
+
+const staffMembers = await Staff.find(staffQuery);
 
 
         for (const staff of staffMembers) {

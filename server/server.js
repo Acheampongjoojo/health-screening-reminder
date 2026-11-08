@@ -102,6 +102,50 @@ app.post("/api/admin/test-reminders", authenticateAdmin, async (req, res) => {
     }
 });
 
+app.post(
+    "/api/admin/test-reminder-delivery",
+    authenticateAdmin,
+    async (req, res) => {
+        try {
+            const { checkReminders } = require("./scheduler");
+
+            const { testDate, staffId, confirmSend } = req.body;
+
+            if (!testDate || !staffId || confirmSend !== true) {
+                return res.status(400).json({
+                    message: "Provide testDate, staffId, and confirmSend: true."
+                });
+            }
+
+            const Staff = require("./models/staff");
+
+            const staff = await Staff.findOne({
+                _id: staffId,
+                isActive: true,
+            });
+
+            if (!staff) {
+                return res.status(404).json({
+                    message: "Active test staff member not found."
+                });
+            }
+
+            await checkReminders(testDate, false, staffId);
+
+            res.json({
+                message: `Delivery test completed for ${staff.fullName}. Check the server terminal and Gmail.`
+            });
+
+        } catch (error) {
+            console.error("Delivery test failed:", error.message);
+
+            res.status(500).json({
+                message: "Delivery test failed."
+            });
+        }
+    }
+);
+
 
 
 
