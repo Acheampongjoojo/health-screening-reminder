@@ -114,14 +114,14 @@ async function checkReminders(
     try {
 
         const staffQuery = {
-    isActive: true,
-};
+            isActive: true,
+        };
 
-if (targetStaffId) {
-    staffQuery._id = targetStaffId;
-}
+        if (targetStaffId) {
+            staffQuery._id = targetStaffId;
+        }
 
-const staffMembers = await Staff.find(staffQuery);
+        const staffMembers = await Staff.find(staffQuery);
 
 
         for (const staff of staffMembers) {
@@ -206,6 +206,11 @@ const staffMembers = await Staff.find(staffQuery);
                                 console.error(
                                     `[YEARLY ANNOUNCEMENT EMAIL ERROR] ${staff.fullName}:`,
                                     emailError.message
+                                );
+
+                                console.warn(
+                                    `[NEEDS REVIEW] Check whether the yearly announcement for ${staff.fullName} ` +
+                                    "was delivered before attempting another send."
                                 );
 
                                 continue;
@@ -317,6 +322,11 @@ const staffMembers = await Staff.find(staffQuery);
                                 console.error(
                                     `[MONTHLY REMINDER EMAIL ERROR] ${staff.fullName}:`,
                                     emailError.message
+                                );
+
+                                console.warn(
+                                    `[NEEDS REVIEW] Check whether the monthly reminder for ${staff.fullName} ` +
+                                    "was delivered before attempting another send."
                                 );
 
                                 continue;
@@ -555,6 +565,11 @@ const staffMembers = await Staff.find(staffQuery);
                                 console.error(
                                     `[SCREENING DAY EMAIL ERROR] ${staff.fullName}:`,
                                     emailError.message
+                                );
+
+                                console.warn(
+                                    `[NEEDS REVIEW] Check whether the screening-day reminder for ${staff.fullName} ` +
+                                    "was delivered before attempting another send."
                                 );
 
                                 continue;
