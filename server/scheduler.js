@@ -67,7 +67,7 @@ async function prepareReminder(reminderKey, staff, reminderType) {
             {
                 $set: { status: "sending" }
             },
-            { new: true }
+            { returnDocument: "after" }
         );
 
         return Boolean(claimedReminder);
