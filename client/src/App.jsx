@@ -28,6 +28,11 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
 
+  const [reminderLogs, setReminderLogs] = useState([]);
+const [logsLoading, setLogsLoading] = useState(false);
+const [logsError, setLogsError] = useState("");
+const [logStatus, setLogStatus] = useState("all");
+
   function handleLogin(newToken) {
     sessionStorage.setItem(TOKEN_KEY, newToken);
     setToken(newToken);
@@ -83,6 +88,39 @@ function App() {
     }
   }
 
+  async function fetchReminderLogs(status = logStatus) {
+    setLogsLoading(true);
+    setLogsError("");
+
+    try {
+        const query =
+            status !== "all"
+                ? `?status=${encodeURIComponent(status)}`
+                : "";
+
+        const response = await apiRequest(
+            `http://localhost:5000/api/admin/reminder-logs${query}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.message || "Could not retrieve reminder logs."
+            );
+        }
+
+        setReminderLogs(data);
+
+    } catch (error) {
+        console.error("Failed to fetch reminder logs:", error.message);
+        setLogsError(error.message);
+
+    } finally {
+        setLogsLoading(false);
+    }
+}
+
 
   async function handleTestReminders() {
     try {
@@ -122,12 +160,19 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      fetchStaff();
+        fetchStaff();
+        
     } else {
-      setStaff([]);
-      setLoading(false);
+        setStaff([]);
+        setReminderLogs([]);
     }
-  }, [token]);
+}, [token]);
+
+useEffect(() => {
+    if (token) {
+        fetchReminderLogs(logStatus);
+    }
+}, [token, logStatus]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -450,6 +495,99 @@ function App() {
           </div>
         )}
       </section>
+
+              <section className="panel">
+        <div className="logs-header">
+          <div>
+            <h2>Reminder Logs</h2>
+            <p>Track health screening reminder emails sent to staff.</p>
+          </div>
+
+          <div className="logs-controls">
+            <select
+              value={logStatus}
+              onChange={(event) => setLogStatus(event.target.value)}
+            >
+              <option value="all">All statuses</option>
+              <option value="sent">Sent</option>
+              <option value="sending">Sending</option>
+              <option value="failed">Failed</option>
+              <option value="needs_review">Needs review</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => fetchReminderLogs(logStatus)}
+              className="submit-button"
+              disabled={logsLoading}
+            >
+              {logsLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {logsError && (
+          <p className="error">{logsError}</p>
+        )}
+
+        {logsLoading ? (
+          <p>Loading reminder logs...</p>
+        ) : reminderLogs.length === 0 ? (
+          <p>No reminder logs found for this status.</p>
+        ) : (
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Staff member</th>
+                  <th>Department</th>
+                  <th>Reminder type</th>
+                  <th>Screening date</th>
+                  <th>Status</th>
+                  <th>Sent at</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {reminderLogs.map((log) => (
+                  <tr key={log._id}>
+                    <td>
+                      {log.staffId?.fullName || "Staff record unavailable"}
+                    </td>
+
+                    <td>
+                      {log.staffId?.department || "—"}
+                    </td>
+
+                    <td>
+                      {log.reminderType.replace(/-/g, " ")}
+                    </td>
+
+                    <td>
+                      {log.screeningDate
+                        ? new Date(log.screeningDate).toLocaleDateString()
+                        : "—"}
+                    </td>
+
+                    <td>
+                      <span className={`status-badge status-${log.status}`}>
+                        {log.status.replace(/_/g, " ")}
+                      </span>
+                    </td>
+
+                    <td>
+                      {log.sentAt
+                        ? new Date(log.sentAt).toLocaleString()
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
     </main>
   );
 }

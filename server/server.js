@@ -474,6 +474,50 @@ app.delete("/api/staff/:id", authenticateAdmin, async (req, res) => {
 });
 
 
+// Get reminder logs
+app.get("/api/admin/reminder-logs", authenticateAdmin, async (req, res) => {
+    try {
+        const { status } = req.query;
+
+        const allowedStatuses = [
+            "sending",
+            "sent",
+            "failed",
+            "needs_review"
+        ];
+
+        const filter = {};
+
+        // Filter by status when one is provided.
+        if (status) {
+            if (!allowedStatuses.includes(status)) {
+                return res.status(400).json({
+                    message: "Invalid reminder status."
+                });
+            }
+
+            filter.status = status;
+        }
+
+        const reminderLogs = await ReminderLog.find(filter)
+            .populate("staffId", "fullName department email")
+            .sort({ createdAt: -1 })
+            .limit(100)
+            .lean();
+
+        res.status(200).json(reminderLogs);
+
+    } catch (error) {
+        console.error("Failed to retrieve reminder logs:", error.message);
+
+        res.status(500).json({
+            message: "Failed to retrieve reminder logs."
+        });
+    }
+});
+
+
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     startScheduler();
