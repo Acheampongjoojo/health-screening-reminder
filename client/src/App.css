@@ -1,3 +1,22 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  border: none;
+  outline: none;
+  background: #f4f7fb;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  color: #1e293b;
+}
+
+#root {
+  width: 100%;
+}
+
 
 * {
   box-sizing: border-box;
@@ -38,6 +57,7 @@ textarea {
 }
 
 h1 {
+  color: #71797E;
   margin: 8px 0;
   font-size: clamp(26px, 4vw, 36px);
 }

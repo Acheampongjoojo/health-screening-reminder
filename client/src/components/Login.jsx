@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import "./Login.css";
 
 function Login({ onLogin }) {
@@ -7,6 +8,7 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -43,7 +45,7 @@ function Login({ onLogin }) {
     <main className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
         <h1>Administrator Login</h1>
-        <p>Sign in to manage staff health screenings.</p>
+        <p>Manage Staff Health Screenings</p>
 
         <label htmlFor="username">Username</label>
         <input
@@ -56,14 +58,26 @@ function Login({ onLogin }) {
         />
 
         <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-          required
-        />
+
+        <div className="password-input-wrapper">
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
+
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+          </button>
+        </div>
 
         {error && <p className="login-error">{error}</p>}
 

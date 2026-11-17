@@ -337,7 +337,7 @@ function App() {
     <main className="dashboard">
       <header className="dashboard-header">
         <div>
-          <p className="eyebrow">STAFF HEALTH MANAGEMENT</p>
+          
           <h1>Health Screening Reminder</h1>
           <p>Manage staff details and upcoming health screenings.</p>
         </div>
