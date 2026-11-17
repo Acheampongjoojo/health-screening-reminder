@@ -483,7 +483,8 @@ app.get("/api/admin/reminder-logs", authenticateAdmin, async (req, res) => {
             "sending",
             "sent",
             "failed",
-            "needs_review"
+            "needs_review",
+            "reviewed"
         ];
 
         const filter = {};
@@ -515,6 +516,76 @@ app.get("/api/admin/reminder-logs", authenticateAdmin, async (req, res) => {
         });
     }
 });
+
+
+
+// Review a reminder log
+app.patch("/api/admin/reminder-logs/:id/review", authenticateAdmin, async (req, res) => {
+    try {
+        const { reviewOutcome, reviewNote } = req.body;
+
+        const allowedOutcomes = [
+            "delivered",
+            "not_delivered",
+            "unknown"
+        ];
+
+        if (!allowedOutcomes.includes(reviewOutcome)) {
+            return res.status(400).json({
+                message: "Invalid review outcome."
+            });
+        }
+
+        if (
+            reviewNote !== undefined &&
+            typeof reviewNote !== "string"
+        ) {
+            return res.status(400).json({
+                message: "Review note must be text."
+            });
+        }
+
+        const reviewedLog = await ReminderLog.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                status: "needs_review"
+            },
+            {
+                $set: {
+                    status: "reviewed",
+                    reviewOutcome,
+                    reviewedAt: new Date(),
+                    reviewedBy: req.admin.username,
+                    reviewNote: reviewNote || ""
+                }
+            },
+            {
+                returnDocument: "after"
+            }
+        )
+        .populate("staffId", "fullName department email")
+        .lean();
+
+        if (!reviewedLog) {
+            return res.status(404).json({
+                message: "Reminder log not found or has already been reviewed."
+            });
+        }
+
+        res.status(200).json({
+            message: "Reminder reviewed successfully.",
+            reminderLog: reviewedLog
+        });
+
+    } catch (error) {
+        console.error("Failed to review reminder:", error.message);
+
+        res.status(500).json({
+            message: "Failed to review reminder."
+        });
+    }
+});
+
 
 
 

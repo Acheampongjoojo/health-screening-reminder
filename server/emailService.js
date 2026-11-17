@@ -73,7 +73,7 @@ function buildEmailHtml({
 
     const safeDate = escapeHtml(screeningDate || "To be confirmed");
     const safeTime = escapeHtml(screeningTime || "To be confirmed");
-    const safeClinic = escapeHtml(clinic || "To be confirmed");
+    const safeClinic = escapeHtml(clinic || "Cocoa Clinic");
 
     const safeInstructions = escapeHtml(
         instructions || "Please contact the clinic if you need further instructions."

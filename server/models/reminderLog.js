@@ -23,11 +23,25 @@ const reminderLogSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["sending", "sent", "failed", "needs_review"],
+            enum: ["sending", "sent", "failed", "needs_review", "reviewed"],
             default: "sending"
         },
         sentAt: {
             type: Date
+        },
+        reviewedAt: {
+            type: Date
+        },
+        reviewedBy: {
+            type: String
+        },
+        reviewNote: {
+            type: String,
+            trim: true
+        },
+        reviewOutcome: {
+            type: String,
+            enum: ["delivered", "not_delivered", "unknown"]
         }
     },
     { timestamps: true }

@@ -29,9 +29,13 @@ function App() {
   const [formData, setFormData] = useState(emptyForm);
 
   const [reminderLogs, setReminderLogs] = useState([]);
-const [logsLoading, setLogsLoading] = useState(false);
-const [logsError, setLogsError] = useState("");
-const [logStatus, setLogStatus] = useState("all");
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState("");
+  const [logStatus, setLogStatus] = useState("all");
+
+  const [reviewingLogId, setReviewingLogId] = useState(null);
+  const [reviewOutcome, setReviewOutcome] = useState("delivered");
+  const [reviewNote, setReviewNote] = useState("");
 
   function handleLogin(newToken) {
     sessionStorage.setItem(TOKEN_KEY, newToken);
@@ -93,33 +97,71 @@ const [logStatus, setLogStatus] = useState("all");
     setLogsError("");
 
     try {
-        const query =
-            status !== "all"
-                ? `?status=${encodeURIComponent(status)}`
-                : "";
+      const query =
+        status !== "all"
+          ? `?status=${encodeURIComponent(status)}`
+          : "";
 
-        const response = await apiRequest(
-            `http://localhost:5000/api/admin/reminder-logs${query}`
+      const response = await apiRequest(
+        `http://localhost:5000/api/admin/reminder-logs${query}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Could not retrieve reminder logs."
         );
+      }
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.message || "Could not retrieve reminder logs."
-            );
-        }
-
-        setReminderLogs(data);
+      setReminderLogs(data);
 
     } catch (error) {
-        console.error("Failed to fetch reminder logs:", error.message);
-        setLogsError(error.message);
+      console.error("Failed to fetch reminder logs:", error.message);
+      setLogsError(error.message);
 
     } finally {
-        setLogsLoading(false);
+      setLogsLoading(false);
     }
-}
+  }
+
+
+  async function handleReviewReminder(logId) {
+    try {
+      const response = await apiRequest(
+        `http://localhost:5000/api/admin/reminder-logs/${logId}/review`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            reviewOutcome,
+            reviewNote,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Could not review reminder."
+        );
+      }
+
+      setReviewingLogId(null);
+      setReviewOutcome("delivered");
+      setReviewNote("");
+
+      await fetchReminderLogs(logStatus);
+
+    } catch (error) {
+      console.error("Failed to review reminder:", error.message);
+      setLogsError(error.message);
+    }
+  }
+
 
 
   async function handleTestReminders() {
@@ -160,19 +202,19 @@ const [logStatus, setLogStatus] = useState("all");
 
   useEffect(() => {
     if (token) {
-        fetchStaff();
-        
-    } else {
-        setStaff([]);
-        setReminderLogs([]);
-    }
-}, [token]);
+      fetchStaff();
 
-useEffect(() => {
-    if (token) {
-        fetchReminderLogs(logStatus);
+    } else {
+      setStaff([]);
+      setReminderLogs([]);
     }
-}, [token, logStatus]);
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchReminderLogs(logStatus);
+    }
+  }, [token, logStatus]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -496,7 +538,7 @@ useEffect(() => {
         )}
       </section>
 
-              <section className="panel">
+      <section className="panel">
         <div className="logs-header">
           <div>
             <h2>Reminder Logs</h2>
@@ -513,6 +555,7 @@ useEffect(() => {
               <option value="sending">Sending</option>
               <option value="failed">Failed</option>
               <option value="needs_review">Needs review</option>
+              <option value="reviewed">Reviewed</option>
             </select>
 
             <button
@@ -545,6 +588,8 @@ useEffect(() => {
                   <th>Screening date</th>
                   <th>Status</th>
                   <th>Sent at</th>
+                  <th>Review details</th>
+                  <th>Action</th>
                 </tr>
               </thead>
 
@@ -569,6 +614,8 @@ useEffect(() => {
                         : "—"}
                     </td>
 
+
+
                     <td>
                       <span className={`status-badge status-${log.status}`}>
                         {log.status.replace(/_/g, " ")}
@@ -580,6 +627,55 @@ useEffect(() => {
                         ? new Date(log.sentAt).toLocaleString()
                         : "—"}
                     </td>
+
+                    <td>
+                      {log.status === "reviewed" ? (
+                        <div className="review-details">
+                          <p>
+                            <strong>Outcome:</strong>{" "}
+                            {log.reviewOutcome?.replace(/_/g, " ") || "—"}
+                          </p>
+
+                          <p>
+                            <strong>Reviewed by:</strong>{" "}
+                            {log.reviewedBy || "—"}
+                          </p>
+
+                          <p>
+                            <strong>Reviewed at:</strong>{" "}
+                            {log.reviewedAt
+                              ? new Date(log.reviewedAt).toLocaleString()
+                              : "—"}
+                          </p>
+
+                          <p>
+                            <strong>Note:</strong>{" "}
+                            {log.reviewNote || "No note provided"}
+                          </p>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      {log.status === "needs_review" ? (
+                        <button
+                          type="button"
+                          className="submit-button"
+                          onClick={() => {
+                            setReviewingLogId(log._id);
+                            setReviewOutcome("delivered");
+                            setReviewNote("");
+                          }}
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
                   </tr>
                 ))}
               </tbody>
@@ -587,6 +683,62 @@ useEffect(() => {
           </div>
         )}
       </section>
+
+
+      {reviewingLogId && (
+        <div className="review-form">
+          <h3>Review Reminder</h3>
+
+          <label htmlFor="reviewOutcome">
+            Delivery outcome
+          </label>
+
+          <select
+            id="reviewOutcome"
+            value={reviewOutcome}
+            onChange={(event) => setReviewOutcome(event.target.value)}
+          >
+            <option value="delivered">Delivered</option>
+            <option value="not_delivered">Not delivered</option>
+            <option value="unknown">Unable to confirm</option>
+          </select>
+
+          <label htmlFor="reviewNote">
+            Review note
+          </label>
+
+          <textarea
+            id="reviewNote"
+            value={reviewNote}
+            onChange={(event) => setReviewNote(event.target.value)}
+            placeholder="Enter details about the delivery check..."
+            rows="3"
+          />
+
+          <div className="review-actions">
+            <button
+              type="button"
+              className="submit-button"
+              onClick={() => handleReviewReminder(reviewingLogId)}
+            >
+              Submit Review
+            </button>
+
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={() => {
+                setReviewingLogId(null);
+                setReviewNote("");
+                setReviewOutcome("delivered");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
 
     </main>
   );

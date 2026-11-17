@@ -320,3 +320,69 @@ th {
   }
 }
 
+
+
+/* Reminder Review Form */
+.review-form {
+  margin-top: 25px;
+  padding: 22px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.review-form h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #1e293b;
+}
+
+.review-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.review-form select,
+.review-form textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  background: white;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+.review-form textarea {
+  resize: vertical;
+}
+
+.review-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.review-actions button {
+  margin: 0;
+}
+
+.cancel-button {
+  padding: 12px 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  background: #e2e8f0;
+}
+

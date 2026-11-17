@@ -19,6 +19,15 @@ async function prepareReminder(reminderKey, staff, reminderType) {
         return false;
     }
 
+    // Never automatically resend a reminder that has been reviewed.
+if (existingReminder && existingReminder.status === "reviewed") {
+    console.log(
+        `[REVIEWED] ${reminderType} reminder for ${staff.fullName}. ` +
+        "No automatic retry will be attempted."
+    );
+    return false;
+}
+
     // Uncertain delivery must be reviewed before another attempt.
     if (existingReminder && existingReminder.status === "needs_review") {
         console.warn(
@@ -185,7 +194,7 @@ async function checkReminders(
                                             `Your annual health screening is scheduled for ${screeningDate.toFormat("MMMM")} ${today.year}. Your exact appointment date and time, along with any preparation instructions, will be communicated closer to your screening.`,
                                         screeningDate: `Scheduled for ${screeningDate.toFormat("MMMM")} ${today.year}`,
                                         screeningTime: "To be communicated",
-                                        clinic: "To be communicated",
+                                        clinic: "Cocoa Clinic",
                                         instructions: "Please look out for your upcoming appointment details."
                                     })
                                 });
@@ -291,7 +300,7 @@ async function checkReminders(
                                         `Your annual health screening is scheduled for ` +
                                         `${screeningDate.toFormat("dd LLLL yyyy")} ` +
                                         `at ${staff.screeningTime}.\n\n` +
-                                        `Clinic: ${staff.clinic}\n` +
+                                        `Clinic: ${staff.clinic || "Cocoa Clinic"}\n` +
                                         `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
                                         `Regards,\nHealth Screening Team`,
 
@@ -413,7 +422,7 @@ async function checkReminders(
                                         `This is a reminder that your annual health screening ` +
                                         `is scheduled for ${screeningDate.toFormat("dd LLLL yyyy")} ` +
                                         `at ${staff.screeningTime}.\n\n` +
-                                        `Clinic: ${staff.clinic}\n` +
+                                        `Clinic: ${staff.clinic || "Cocoa Clinic"}\n` +
                                         `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
                                         `Please make the necessary preparations for your appointment.\n\n` +
                                         `Regards,\nHealth Screening Team`,
@@ -424,7 +433,7 @@ async function checkReminders(
                                             "This is a reminder that your annual health screening is in two days. Please make the necessary preparations for your appointment.",
                                         screeningDate: screeningDate.toFormat("dd LLLL yyyy"),
                                         screeningTime: staff.screeningTime,
-                                        clinic: staff.clinic,
+                                        clinic: staff.clinic || "Cocoa Clinic",
                                         instructions: staff.instructions
                                     })
                                 });
@@ -533,7 +542,7 @@ async function checkReminders(
                                         `Hello ${staff.fullName},\n\n` +
                                         `This is a reminder that your health screening is scheduled for today, ` +
                                         `${screeningDate.toFormat("dd LLLL yyyy")} at ${staff.screeningTime}.\n\n` +
-                                        `Clinic: ${staff.clinic}\n` +
+                                        `Clinic: ${staff.clinic || "Cocoa Clinic"}\n` +
                                         `Instructions: ${staff.instructions || "Please contact the clinic if you need further instructions."}\n\n` +
                                         `Please attend your appointment as scheduled.\n\n` +
                                         `Regards,\nHealth Screening Team`,
@@ -544,7 +553,7 @@ async function checkReminders(
                                             "Today is your scheduled annual health screening. Please attend your appointment as scheduled.",
                                         screeningDate: screeningDate.toFormat("dd LLLL yyyy"),
                                         screeningTime: staff.screeningTime,
-                                        clinic: staff.clinic,
+                                        clinic: staff.clinic || "Cocoa Clinic",
                                         instructions: staff.instructions
                                     })
                                 });
